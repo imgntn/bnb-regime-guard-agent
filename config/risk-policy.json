@@ -1,0 +1,16 @@
+{
+  "eligibleSymbols": ["BNB", "CAKE", "TWT", "USDT", "USDC", "FDUSD"],
+  "stableSymbols": ["USDT", "USDC", "FDUSD"],
+  "baseStable": "USDT",
+  "maxGrossExposurePct": 80,
+  "minStableReservePct": 20,
+  "maxSinglePositionPct": 25,
+  "maxUsdPerTrade": 5,
+  "maxDailyTrades": 1,
+  "dailyLossStopPct": 4,
+  "weeklyDrawdownStopPct": 8,
+  "slippagePct": 0.75,
+  "minConfidence": 65,
+  "chain": "bsc"
+}
+

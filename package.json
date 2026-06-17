@@ -1,0 +1,22 @@
+{
+  "name": "bnb-regime-guard-agent",
+  "version": "0.1.0",
+  "description": "Track 1 autonomous BNB Chain trading agent using CMC market data and TWAK execution guardrails.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "doctor": "node src/cli.js doctor",
+    "analyze": "node src/cli.js analyze",
+    "once:dry": "node src/cli.js run --dry-run",
+    "once:live": "node src/cli.js run --live",
+    "loop:dry": "node src/cli.js loop --dry-run",
+    "register": "node src/cli.js register",
+    "compete:status": "node src/cli.js compete-status",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
+
