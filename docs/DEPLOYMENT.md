@@ -4,6 +4,8 @@
 
 Track 1 execution should run on a machine where the user controls the TWAK wallet and OS keychain.
 
+See `docs/TWAK_WALLET_SETUP.md` for the full credential, wallet, funding, and registration flow.
+
 1. Install Node.js 20+.
 2. Clone the repo.
 3. Run `npm install`.
@@ -29,4 +31,3 @@ Do not put TWAK wallet passwords, private keys, API keys, or mnemonics in GitHub
 - BSC registration transaction hash from `npm run register`.
 - At least one BSC trade transaction hash from `npm run once:live`.
 - Short explanation of the strategy and guardrails.
-

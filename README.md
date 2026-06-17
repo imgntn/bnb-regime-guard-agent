@@ -33,6 +33,8 @@ npm run once:dry
 
 ## TWAK Setup
 
+Detailed wallet setup is in `docs/TWAK_WALLET_SETUP.md`.
+
 Install or use the CLI through `npx`:
 
 ```bash
