@@ -48,6 +48,8 @@ twak init
 twak wallet create --password "use-a-strong-local-password"
 ```
 
+The agent also loads a local `.env` file. Use `TWAK_ACCESS_ID` and `TWAK_HMAC_SECRET`; `TW_ACCESS_ID` and `TW_HMAC_SECRET` are accepted as aliases.
+
 Do not commit `.env`, wallet files, mnemonics, or private keys.
 
 ## Competition Registration
