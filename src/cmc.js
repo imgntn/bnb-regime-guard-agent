@@ -179,7 +179,8 @@ async function parseMcpResponse(response) {
 }
 
 function cmcBodyToSnapshot(body) {
-  const assets = Object.values(body.data ?? {}).map((asset) => {
+  const uniqueAssets = dedupeCmcAssets(body.data);
+  const assets = uniqueAssets.map((asset) => {
     const quote = asset.quote?.USD ?? {};
     const price = Number(quote.price ?? 0);
     const change7d = Number(quote.percent_change_7d ?? 0);
@@ -213,6 +214,33 @@ function cmcBodyToSnapshot(body) {
     },
     assets
   };
+}
+
+function dedupeCmcAssets(data) {
+  const values = Array.isArray(data) ? data : Object.values(data ?? {});
+  const flattened = values.flatMap((value) => Array.isArray(value) ? value : [value]);
+  const bySymbol = new Map();
+
+  for (const asset of flattened) {
+    if (!asset?.symbol) continue;
+    const symbol = String(asset.symbol).toUpperCase();
+    const current = bySymbol.get(symbol);
+    if (!current || rankAsset(asset, current) < 0) {
+      bySymbol.set(symbol, asset);
+    }
+  }
+
+  return [...bySymbol.values()];
+}
+
+function rankAsset(a, b) {
+  const rankA = Number(a.cmc_rank ?? Infinity);
+  const rankB = Number(b.cmc_rank ?? Infinity);
+  if (rankA !== rankB) return rankA - rankB;
+
+  const capA = Number(a.quote?.USD?.market_cap ?? 0);
+  const capB = Number(b.quote?.USD?.market_cap ?? 0);
+  return capB - capA;
 }
 
 function x402Endpoint() {
