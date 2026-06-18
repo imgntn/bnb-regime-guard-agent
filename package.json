@@ -12,6 +12,7 @@
     "loop:dry": "node src/cli.js loop --dry-run",
     "shadow:open": "node src/cli.js shadow-open",
     "shadow:mark": "node src/cli.js shadow-mark",
+    "shadow:scan": "node src/cli.js shadow-scan",
     "register": "node src/cli.js register",
     "compete:status": "node src/cli.js compete-status",
     "test": "node --test"

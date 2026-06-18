@@ -38,9 +38,10 @@ Shadow trading records the quote the agent would have taken and later marks that
 ```bash
 npm run shadow:open
 npm run shadow:mark
+npm run shadow:scan
 ```
 
-This is useful for measuring spread, slippage, and short-term signal behavior before enabling live mode.
+This is useful for measuring spread, slippage, candidate routing cost, and short-term signal behavior before enabling live mode.
 
 ## TWAK Setup
 

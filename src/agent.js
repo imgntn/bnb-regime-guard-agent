@@ -141,6 +141,71 @@ export async function markShadowTrade() {
   };
 }
 
+export async function scanShadowCandidates() {
+  const policy = loadPolicy();
+  const snapshot = await loadMarketSnapshot({ symbols: policy.eligibleSymbols });
+  const report = analyzeSnapshot(snapshot, policy);
+  const candidates = report.signals.filter(
+    (signal) => signal.action === "ROTATE_IN" && signal.confidence >= policy.minConfidence
+  );
+
+  const scans = [];
+  for (const signal of candidates) {
+    const intent = {
+      action: "SWAP",
+      chain: policy.chain,
+      fromSymbol: policy.baseStable,
+      toSymbol: signal.symbol,
+      fromAssetId: policy.tokenAddresses?.[policy.baseStable] ?? policy.baseStable,
+      toAssetId: policy.tokenAddresses?.[signal.symbol] ?? signal.symbol,
+      usdAmount: policy.maxUsdPerTrade,
+      slippagePct: policy.slippagePct,
+      signal
+    };
+    try {
+      const entryQuote = await twak.quoteSwap(intent);
+      const entryInput = parseQuotedAmount(entryQuote.input);
+      const entryOutput = parseQuotedAmount(entryQuote.output);
+      const exitQuote = await twak.quoteExactSwap({
+        amount: entryOutput.amount,
+        fromSymbol: intent.toSymbol,
+        toSymbol: intent.fromSymbol,
+        fromAssetId: intent.toAssetId,
+        toAssetId: intent.fromAssetId,
+        chain: policy.chain,
+        slippagePct: policy.slippagePct
+      });
+      const exitOutput = parseQuotedAmount(exitQuote.output);
+      const roundTripPnl = exitOutput.amount - entryInput.amount;
+      const roundTripPnlPct = entryInput.amount ? (roundTripPnl / entryInput.amount) * 100 : 0;
+      scans.push({
+        symbol: signal.symbol,
+        score: signal.score,
+        confidence: signal.confidence,
+        entryQuote,
+        exitQuote,
+        roundTripPnl: Number(roundTripPnl.toFixed(8)),
+        roundTripPnlPct: Number(roundTripPnlPct.toFixed(4))
+      });
+    } catch (error) {
+      scans.push({
+        symbol: signal.symbol,
+        score: signal.score,
+        confidence: signal.confidence,
+        error: error.message,
+        code: error.code
+      });
+    }
+  }
+
+  scans.sort((a, b) => (b.roundTripPnlPct ?? -Infinity) - (a.roundTripPnlPct ?? -Infinity));
+  return {
+    scannedAt: new Date().toISOString(),
+    regime: report.regime,
+    candidates: scans
+  };
+}
+
 function parseQuotedAmount(text) {
   const match = String(text).match(/^([0-9.]+)\s+(.+)$/);
   if (!match) {

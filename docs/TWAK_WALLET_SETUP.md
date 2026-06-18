@@ -129,9 +129,10 @@ You can record a no-funds virtual trade and mark it later:
 ```powershell
 npm run shadow:open
 npm run shadow:mark
+npm run shadow:scan
 ```
 
-`shadow:open` saves the proposed TWAK quote to ignored local state. `shadow:mark` quotes the reverse side and estimates unrealized PnL. This is a quote-based approximation, not a guarantee of live execution price.
+`shadow:open` saves the proposed TWAK quote to ignored local state. `shadow:mark` quotes the reverse side and estimates unrealized PnL. `shadow:scan` compares current candidates by immediate round-trip quote drag. This is a quote-based approximation, not a guarantee of live execution price.
 
 ## 9. Security Notes
 
