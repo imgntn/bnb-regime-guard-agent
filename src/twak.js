@@ -48,11 +48,11 @@ export const twak = {
   walletStatus: () => runTwak(["wallet", "status"]),
   competeStatus: () => runTwak(["compete", "status"]),
   competeRegister: () => runTwak(["compete", "register"], { timeoutMs: 180000 }),
-  quoteSwap: ({ usdAmount, fromSymbol, toSymbol, chain, slippagePct }) =>
+  quoteSwap: ({ usdAmount, fromSymbol, toSymbol, fromAssetId, toAssetId, chain, slippagePct }) =>
     runTwak([
       "swap",
-      fromSymbol,
-      toSymbol,
+      fromAssetId ?? fromSymbol,
+      toAssetId ?? toSymbol,
       "--chain",
       chain,
       "--usd",
@@ -61,11 +61,11 @@ export const twak = {
       String(slippagePct),
       "--quote-only"
     ]),
-  executeSwap: ({ usdAmount, fromSymbol, toSymbol, chain, slippagePct }) =>
+  executeSwap: ({ usdAmount, fromSymbol, toSymbol, fromAssetId, toAssetId, chain, slippagePct }) =>
     runTwak([
       "swap",
-      fromSymbol,
-      toSymbol,
+      fromAssetId ?? fromSymbol,
+      toAssetId ?? toSymbol,
       "--chain",
       chain,
       "--usd",

@@ -2,6 +2,13 @@
   "eligibleSymbols": ["BNB", "CAKE", "TWT", "USDT", "USDC", "FDUSD"],
   "stableSymbols": ["USDT", "USDC", "FDUSD"],
   "baseStable": "USDT",
+  "tokenAddresses": {
+    "CAKE": "0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82",
+    "TWT": "0x4b0f1812e5df2a09796481ff14017e6005508003",
+    "USDT": "0x55d398326f99059ff775485246999027b3197955",
+    "USDC": "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+    "FDUSD": "0xc5f0f7b66764f6ec8c8dff7ba683102295e16409"
+  },
   "maxGrossExposurePct": 80,
   "minStableReservePct": 20,
   "maxSinglePositionPct": 25,
@@ -13,4 +20,3 @@
   "minConfidence": 65,
   "chain": "bsc"
 }
-

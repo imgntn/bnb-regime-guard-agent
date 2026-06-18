@@ -14,6 +14,8 @@ test("sample snapshot produces a guarded swap intent", () => {
   assert.equal(intent.chain, "bsc");
   assert.equal(intent.fromSymbol, "USDT");
   assert.ok(policy.eligibleSymbols.includes(intent.toSymbol));
+  assert.match(intent.fromAssetId, /^0x[a-fA-F0-9]{40}$/);
+  assert.match(intent.toAssetId, /^0x[a-fA-F0-9]{40}$/);
 });
 
 test("risk-off report blocks new rotate-in intent through validation inputs", () => {
@@ -25,4 +27,3 @@ test("risk-off report blocks new rotate-in intent through validation inputs", ()
   const report = analyzeSnapshot(snapshot, policy);
   assert.equal(report.regime.label, "risk_off");
 });
-

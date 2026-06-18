@@ -175,10 +175,11 @@ export function buildTradeIntent(report, policy) {
     chain: policy.chain,
     fromSymbol: policy.baseStable,
     toSymbol: candidate.symbol,
+    fromAssetId: policy.tokenAddresses?.[policy.baseStable] ?? policy.baseStable,
+    toAssetId: policy.tokenAddresses?.[candidate.symbol] ?? candidate.symbol,
     usdAmount: policy.maxUsdPerTrade,
     slippagePct: policy.slippagePct,
     rationale: candidate.reasons,
     signal: candidate
   };
 }
-
