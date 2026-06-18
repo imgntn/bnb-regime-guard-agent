@@ -14,7 +14,7 @@ Regime Guard TWAK Agent is a self-custody BNB Chain trading agent that reads Coi
 
 ## Long Description
 
-Regime Guard TWAK Agent converts CoinMarketCap market data into a daily BNB Chain spot-rotation decision. It classifies the broader market as risk-on, mixed, or risk-off, ranks eligible assets by trend, momentum, volatility, and liquidity, then creates one guarded swap intent. The execution layer is Trust Wallet Agent Kit: every live trade is quoted first through `twak swap --quote-only`, checked against allowlists, slippage, daily trade count, and per-trade size limits, and only then submitted through the local self-custody TWAK wallet.
+Regime Guard TWAK Agent converts CoinMarketCap market data into a daily BNB Chain spot-rotation decision. It classifies the broader market as risk-on, mixed, or risk-off, ranks eligible assets by trend, momentum, volatility, and liquidity, then route-checks candidates through Trust Wallet Agent Kit before creating one guarded swap intent. The execution layer is TWAK: every live trade is quoted first through `twak swap --quote-only`, checked against allowlists, route drag, slippage, daily trade count, and per-trade size limits, and only then submitted through the local self-custody TWAK wallet.
 
 The agent defaults to dry-run mode and requires two explicit live-trading environment flags before it can execute. This keeps custody with the user while giving judges a reproducible agent loop, transparent strategy report, and clear on-chain proof path.
 
@@ -29,6 +29,7 @@ TWAK is the only execution layer. The agent uses:
 - `twak auth status` and `twak wallet status` for setup checks.
 - `twak compete status` and `twak compete register` for BNB Hack registration.
 - `twak swap --quote-only` before any trade.
+- Route-aware candidate selection using TWAK entry and reverse quotes.
 - `twak swap` for live BSC execution only when live guardrails are explicitly enabled.
 
 ## BNB AI Agent SDK Usage

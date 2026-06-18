@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeSnapshot, buildTradeIntent } from "../src/strategy.js";
+import { analyzeSnapshot, buildTradeIntent, buildTradeIntentForSignal } from "../src/strategy.js";
 import { readJson } from "../src/config.js";
 
 const policy = readJson("config/risk-policy.json");
@@ -16,6 +16,19 @@ test("sample snapshot produces a guarded swap intent", () => {
   assert.ok(policy.eligibleSymbols.includes(intent.toSymbol));
   assert.match(intent.fromAssetId, /^0x[a-fA-F0-9]{40}$/);
   assert.match(intent.toAssetId, /^0x[a-fA-F0-9]{40}$/);
+});
+
+test("trade intents can be built for any allowlisted token with a configured address", () => {
+  const signal = {
+    symbol: "FLOKI",
+    action: "ROTATE_IN",
+    score: 55,
+    confidence: 80,
+    reasons: ["test"]
+  };
+  const intent = buildTradeIntentForSignal(signal, policy);
+  assert.equal(intent.toSymbol, "FLOKI");
+  assert.equal(intent.toAssetId, policy.tokenAddresses.FLOKI);
 });
 
 test("risk-off report blocks new rotate-in intent through validation inputs", () => {

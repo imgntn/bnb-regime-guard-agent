@@ -1,4 +1,4 @@
-import { buildTradeIntent, analyzeSnapshot } from "./strategy.js";
+import { analyzeSnapshot, buildTradeIntent, buildTradeIntentForSignal } from "./strategy.js";
 import { loadMarketSnapshot } from "./cmc.js";
 import { loadPolicy } from "./config.js";
 import { liveModeAllowed, loadState, recordTrade, saveState, validateIntent } from "./guardrails.js";
@@ -17,18 +17,19 @@ export async function runOnce({ live = false } = {}) {
   const policy = loadPolicy();
   const snapshot = await loadMarketSnapshot({ symbols: policy.eligibleSymbols });
   const report = analyzeSnapshot(snapshot, policy);
-  const intent = buildTradeIntent(report, policy);
+  const routed = await chooseRoutedIntent(report, policy);
+  const intent = routed.intent;
   const state = loadState();
   const validation = validateIntent(intent, report, policy, state);
 
-  const result = { mode: live ? "live" : "dry-run", report, intent, validation };
+  const result = { mode: live ? "live" : "dry-run", report, intent, routeSelection: routed.routeSelection, validation };
   if (!validation.ok) {
     return { ...result, skipped: true };
   }
 
-  let quote;
+  let quote = routed.quote;
   try {
-    quote = await twak.quoteSwap(intent);
+    quote ??= await twak.quoteSwap(intent);
     result.quote = quote;
   } catch (error) {
     if (!live) {
@@ -151,59 +152,94 @@ export async function scanShadowCandidates() {
 
   const scans = [];
   for (const signal of candidates) {
-    const intent = {
-      action: "SWAP",
-      chain: policy.chain,
-      fromSymbol: policy.baseStable,
-      toSymbol: signal.symbol,
-      fromAssetId: policy.tokenAddresses?.[policy.baseStable] ?? policy.baseStable,
-      toAssetId: policy.tokenAddresses?.[signal.symbol] ?? signal.symbol,
-      usdAmount: policy.maxUsdPerTrade,
-      slippagePct: policy.slippagePct,
-      signal
-    };
-    try {
-      const entryQuote = await twak.quoteSwap(intent);
-      const entryInput = parseQuotedAmount(entryQuote.input);
-      const entryOutput = parseQuotedAmount(entryQuote.output);
-      const exitQuote = await twak.quoteExactSwap({
-        amount: entryOutput.amount,
-        fromSymbol: intent.toSymbol,
-        toSymbol: intent.fromSymbol,
-        fromAssetId: intent.toAssetId,
-        toAssetId: intent.fromAssetId,
-        chain: policy.chain,
-        slippagePct: policy.slippagePct
-      });
-      const exitOutput = parseQuotedAmount(exitQuote.output);
-      const roundTripPnl = exitOutput.amount - entryInput.amount;
-      const roundTripPnlPct = entryInput.amount ? (roundTripPnl / entryInput.amount) * 100 : 0;
-      scans.push({
-        symbol: signal.symbol,
-        score: signal.score,
-        confidence: signal.confidence,
-        entryQuote,
-        exitQuote,
-        roundTripPnl: Number(roundTripPnl.toFixed(8)),
-        roundTripPnlPct: Number(roundTripPnlPct.toFixed(4))
-      });
-    } catch (error) {
-      scans.push({
-        symbol: signal.symbol,
-        score: signal.score,
-        confidence: signal.confidence,
-        error: error.message,
-        code: error.code
-      });
-    }
+    scans.push(await scanCandidateRoute(signal, policy));
   }
 
-  scans.sort((a, b) => (b.roundTripPnlPct ?? -Infinity) - (a.roundTripPnlPct ?? -Infinity));
+  scans.sort((a, b) => (b.adjustedScore ?? -Infinity) - (a.adjustedScore ?? -Infinity));
   return {
     scannedAt: new Date().toISOString(),
     regime: report.regime,
     candidates: scans
   };
+}
+
+async function chooseRoutedIntent(report, policy) {
+  const candidates = report.signals.filter(
+    (signal) => signal.action === "ROTATE_IN" && signal.confidence >= policy.minConfidence
+  );
+  if (!candidates.length) {
+    return {
+      intent: buildTradeIntent(report, policy),
+      routeSelection: { mode: "none", reason: "no ROTATE_IN candidates above confidence threshold" }
+    };
+  }
+
+  const scans = [];
+  for (const signal of candidates) {
+    scans.push(await scanCandidateRoute(signal, policy));
+  }
+  const executable = scans.filter(
+    (scan) => scan.ok && Math.abs(scan.roundTripPnlPct) <= policy.maxRoundTripDragPct
+  );
+  if (!executable.length) {
+    return {
+      intent: { action: "NO_TRADE", reason: "no candidate passed route-drag guardrail" },
+      routeSelection: { mode: "route-adjusted", candidates: scans }
+    };
+  }
+
+  executable.sort((a, b) => b.adjustedScore - a.adjustedScore);
+  const selected = executable[0];
+  return {
+    intent: selected.intent,
+    quote: selected.entryQuote,
+    routeSelection: { mode: "route-adjusted", selected: selected.symbol, candidates: scans }
+  };
+}
+
+async function scanCandidateRoute(signal, policy) {
+  const intent = buildTradeIntentForSignal(signal, policy);
+  try {
+    const entryQuote = await twak.quoteSwap(intent);
+    const entryInput = parseQuotedAmount(entryQuote.input);
+    const entryOutput = parseQuotedAmount(entryQuote.output);
+    const exitQuote = await twak.quoteExactSwap({
+      amount: entryOutput.amount,
+      fromSymbol: intent.toSymbol,
+      toSymbol: intent.fromSymbol,
+      fromAssetId: intent.toAssetId,
+      toAssetId: intent.fromAssetId,
+      chain: policy.chain,
+      slippagePct: policy.slippagePct
+    });
+    const exitOutput = parseQuotedAmount(exitQuote.output);
+    const roundTripPnl = exitOutput.amount - entryInput.amount;
+    const roundTripPnlPct = entryInput.amount ? (roundTripPnl / entryInput.amount) * 100 : 0;
+    const routeDrag = Math.abs(roundTripPnlPct);
+    const adjustedScore = signal.score - routeDrag * policy.routeDragScorePenaltyMultiplier;
+    return {
+      ok: true,
+      symbol: signal.symbol,
+      score: signal.score,
+      adjustedScore: Number(adjustedScore.toFixed(4)),
+      confidence: signal.confidence,
+      intent,
+      entryQuote,
+      exitQuote,
+      roundTripPnl: Number(roundTripPnl.toFixed(8)),
+      roundTripPnlPct: Number(roundTripPnlPct.toFixed(4)),
+      routeAccepted: routeDrag <= policy.maxRoundTripDragPct
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      symbol: signal.symbol,
+      score: signal.score,
+      confidence: signal.confidence,
+      error: error.message,
+      code: error.code
+    };
+  }
 }
 
 function parseQuotedAmount(text) {

@@ -163,23 +163,31 @@ export function analyzeSnapshot(snapshot, policy) {
 }
 
 export function buildTradeIntent(report, policy) {
-  const candidate = report.signals.find(
-    (signal) => signal.action === "ROTATE_IN" && signal.confidence >= policy.minConfidence
-  );
+  const candidate = selectSignalCandidate(report, policy);
   if (!candidate) {
     return { action: "NO_TRADE", reason: "no ROTATE_IN signal above confidence threshold" };
   }
 
+  return buildTradeIntentForSignal(candidate, policy);
+}
+
+export function selectSignalCandidate(report, policy) {
+  return report.signals.find(
+    (signal) => signal.action === "ROTATE_IN" && signal.confidence >= policy.minConfidence
+  );
+}
+
+export function buildTradeIntentForSignal(signal, policy) {
   return {
     action: "SWAP",
     chain: policy.chain,
     fromSymbol: policy.baseStable,
-    toSymbol: candidate.symbol,
+    toSymbol: signal.symbol,
     fromAssetId: policy.tokenAddresses?.[policy.baseStable] ?? policy.baseStable,
-    toAssetId: policy.tokenAddresses?.[candidate.symbol] ?? candidate.symbol,
+    toAssetId: policy.tokenAddresses?.[signal.symbol] ?? signal.symbol,
     usdAmount: policy.maxUsdPerTrade,
     slippagePct: policy.slippagePct,
-    rationale: candidate.reasons,
-    signal: candidate
+    rationale: signal.reasons,
+    signal
   };
 }

@@ -11,6 +11,7 @@ Regime Guard TWAK Agent is the live-execution version of the Regime Guard strate
 - Reads CoinMarketCap data through REST, with sample fallback for reproducible demos.
 - Generates deterministic `ROTATE_IN`, `HOLD`, `REDUCE`, and `AVOID` signals.
 - Builds one guarded daily TWAK swap intent on BSC.
+- Re-quotes candidate routes and penalizes high round-trip drag before selecting a trade.
 - Uses `twak swap --quote-only` before every possible execution.
 - Enforces trade size, daily trade count, slippage, allowlist, and regime gates.
 - Registers the agent wallet for the BNB Hack competition through `twak compete register`.
@@ -42,6 +43,13 @@ npm run shadow:scan
 ```
 
 This is useful for measuring spread, slippage, candidate routing cost, and short-term signal behavior before enabling live mode.
+
+Live and dry-run selection use the same route-aware policy:
+
+- Candidate must be a `ROTATE_IN` signal above the confidence threshold.
+- TWAK must quote both entry and reverse mark routes.
+- Immediate round-trip drag must stay below `maxRoundTripDragPct`.
+- Final choice is ranked by strategy score minus route-drag penalty.
 
 ## TWAK Setup
 
