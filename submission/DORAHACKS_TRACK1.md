@@ -51,7 +51,7 @@ https://github.com/imgntn/bnb-regime-guard-agent
 
 ## Logo
 
-`docs/assets/regime-guard-agent-logo-480.png`
+`docs/assets/regime-guard-agent-logo-v2.png`
 
 ## Demo Instructions
 

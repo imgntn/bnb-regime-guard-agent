@@ -1,6 +1,6 @@
 # Regime Guard TWAK Agent
 
-![Regime Guard TWAK Agent logo](docs/assets/regime-guard-agent-logo-480.png)
+![Regime Guard TWAK Agent logo](docs/assets/regime-guard-agent-logo-v2.png)
 
 Track 1 entry for **BNB Hack: AI Trading Agent Edition - CoinMarketCap x Trust Wallet**.
 

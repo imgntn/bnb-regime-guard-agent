@@ -16,6 +16,11 @@ const card = {
   version: pkg.version,
   description: "Self-custody BNB Chain trading agent using CoinMarketCap Agent Hub data, route-aware TWAK execution, and auditable decision receipts.",
   repository: "https://github.com/imgntn/bnb-regime-guard-agent",
+  logo: {
+    png: "https://raw.githubusercontent.com/imgntn/bnb-regime-guard-agent/main/docs/assets/regime-guard-agent-logo-v2.png",
+    png480: "https://raw.githubusercontent.com/imgntn/bnb-regime-guard-agent/main/docs/assets/regime-guard-agent-logo-v2-480.png",
+    svg: "https://raw.githubusercontent.com/imgntn/bnb-regime-guard-agent/main/docs/assets/regime-guard-agent-logo-v2.svg"
+  },
   track: "BNB Hack Track 1: Autonomous Trading Agents",
   chain: "bsc",
   walletAddress: process.env.AGENT_WALLET_ADDRESS || "set after twak wallet status",

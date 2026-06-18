@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "description": "Self-custody BNB Chain trading agent using CoinMarketCap Agent Hub data, route-aware TWAK execution, and auditable decision receipts.",
   "repository": "https://github.com/imgntn/bnb-regime-guard-agent",
+  "logo": {
+    "png": "https://raw.githubusercontent.com/imgntn/bnb-regime-guard-agent/main/docs/assets/regime-guard-agent-logo-v2.png",
+    "png480": "https://raw.githubusercontent.com/imgntn/bnb-regime-guard-agent/main/docs/assets/regime-guard-agent-logo-v2-480.png",
+    "svg": "https://raw.githubusercontent.com/imgntn/bnb-regime-guard-agent/main/docs/assets/regime-guard-agent-logo-v2.svg"
+  },
   "track": "BNB Hack Track 1: Autonomous Trading Agents",
   "chain": "bsc",
   "walletAddress": "0xFEcCe699B5b93bBFC4Ba0E9db24DA9A6e5Fc9E02",
@@ -74,5 +79,5 @@
     "maxPositionHoldHours": 36
   },
   "policyHash": "7253fb5f6efc6a401ef412b42bffaf4ec0a69e7712b1094e330908ee43d89d27",
-  "cardHash": "507a01c2a3b98167b5da461695af3aaa9e1dce301510b506b10b68eb1a92b4d9"
+  "cardHash": "cc6aab69b42d507334cb44717f1ffee68e607709bdc235e2c7e2fef4affce1e3"
 }
