@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { analyze, doctor, latestEvidence, markShadowTrade, openShadowTrade, recordShadowTick, runOnce, runShadowMonitor, scanShadowCandidates, x402Status } from "./agent.js";
+import { liveTradingDisclaimerReceipt, liveTradingDisclaimerText, printLiveTradingDisclaimer } from "./disclaimer.js";
 import { twak } from "./twak.js";
 
 function print(data) {
@@ -10,8 +11,9 @@ async function main(argv) {
   const [command, ...args] = argv;
   if (!command || command === "help") {
     print({
-      commands: ["doctor", "analyze", "run --dry-run", "run --live", "evidence", "x402-status", "shadow-open", "shadow-mark", "shadow-scan", "shadow-tick", "shadow-monitor", "loop --dry-run", "compete-status", "register"],
-      note: "Live mode requires LIVE_TRADING=1 and TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK."
+      commands: ["doctor", "analyze", "run --dry-run", "run --live", "evidence", "disclaimer", "x402-status", "shadow-open", "shadow-mark", "shadow-scan", "shadow-tick", "shadow-monitor", "loop --dry-run", "compete-status", "register"],
+      note: "Live mode requires LIVE_TRADING=1 and TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK.",
+      disclaimer: liveTradingDisclaimerReceipt()
     });
     return 0;
   }
@@ -25,11 +27,16 @@ async function main(argv) {
     return 0;
   }
   if (command === "run") {
+    if (args.includes("--live")) printLiveTradingDisclaimer();
     print(await runOnce({ live: args.includes("--live") }));
     return 0;
   }
   if (command === "evidence") {
     print(latestEvidence());
+    return 0;
+  }
+  if (command === "disclaimer") {
+    process.stdout.write(liveTradingDisclaimerText() + "\n");
     return 0;
   }
   if (command === "x402-status") {
@@ -58,6 +65,7 @@ async function main(argv) {
   }
   if (command === "loop") {
     const live = args.includes("--live");
+    if (live) printLiveTradingDisclaimer();
     const intervalMs = Number(process.env.AGENT_INTERVAL_MS ?? 24 * 60 * 60 * 1000);
     do {
       print(await runOnce({ live }));
@@ -69,6 +77,7 @@ async function main(argv) {
     return 0;
   }
   if (command === "register") {
+    printLiveTradingDisclaimer();
     print(await twak.competeRegister());
     return 0;
   }

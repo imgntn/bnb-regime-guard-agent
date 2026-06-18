@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ROOT } from "./config.js";
+import { liveTradingDisclaimerReceipt } from "./disclaimer.js";
 
 const LEDGER_PATH = path.join(ROOT, "state", "evidence-ledger.jsonl");
 const LATEST_PATH = path.join(ROOT, "state", "latest-decision-receipt.json");
@@ -10,7 +11,7 @@ export function hashObject(value) {
   return crypto.createHash("sha256").update(stableStringify(value)).digest("hex");
 }
 
-export function recordDecisionReceipt({ mode, snapshot, report, routeSelection, intent, validation, quote, execution }) {
+export function recordDecisionReceipt({ mode, snapshot, report, routeSelection, intent, validation, quote, execution, disclaimer }) {
   const receipt = {
     schema: "regime-guard.decision-receipt.v1",
     recordedAt: new Date().toISOString(),
@@ -20,6 +21,7 @@ export function recordDecisionReceipt({ mode, snapshot, report, routeSelection, 
       walletAddress: process.env.AGENT_WALLET_ADDRESS ?? null,
       repository: "https://github.com/imgntn/bnb-regime-guard-agent"
     },
+    liveTradingDisclaimer: disclaimer ?? liveTradingDisclaimerReceipt(),
     dataAccess: snapshot.agent_hub_access ?? { mode: "unknown" },
     hashes: {
       snapshot: hashObject(stripRuntimeFields(snapshot)),

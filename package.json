@@ -16,6 +16,7 @@
     "shadow:tick": "node src/cli.js shadow-tick",
     "shadow:monitor": "node src/cli.js shadow-monitor",
     "evidence": "node src/cli.js evidence",
+    "disclaimer": "node src/cli.js disclaimer",
     "agent-card": "node scripts/generate-agent-card.js",
     "x402:wallet": "node scripts/create-x402-wallet.js",
     "x402:status": "node src/cli.js x402-status",

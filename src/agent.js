@@ -5,6 +5,7 @@ import { liveModeAllowed, loadState, recordTrade, saveState, validateIntent } fr
 import { twak } from "./twak.js";
 import { evaluateProfitabilityChecklist } from "./checklist.js";
 import { latestDecisionReceipt, recordDecisionReceipt } from "./evidence.js";
+import { liveTradingDisclaimerReceipt } from "./disclaimer.js";
 import { x402WalletStatus } from "./x402.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -59,13 +60,14 @@ export async function runOnce({ live = false } = {}) {
     return attachReceipt({
       ...result,
       executed: false,
-      blocked: "Set LIVE_TRADING=1 and TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK to execute swaps."
+      blocked: "Set LIVE_TRADING=1 and TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK to execute swaps.",
+      disclaimer: liveTradingDisclaimerReceipt()
     }, snapshot);
   }
 
   const execution = await executeIntent(intent);
   saveState(applyPositionUpdate(recordTrade(state, { intent, quote, execution }), intent, quote));
-  return attachReceipt({ ...result, executed: true, execution }, snapshot);
+  return attachReceipt({ ...result, executed: true, execution, disclaimer: liveTradingDisclaimerReceipt() }, snapshot);
 }
 
 export async function doctor() {
@@ -474,7 +476,8 @@ function attachReceipt(result, snapshot) {
     intent: result.intent,
     validation: result.validation,
     quote: result.quote,
-    execution: result.execution
+    execution: result.execution,
+    disclaimer: result.disclaimer
   });
   return { ...result, evidence: { decisionId: evidence.receipt.decisionId, latestPath: evidence.latestPath, ledgerPath: evidence.ledgerPath } };
 }

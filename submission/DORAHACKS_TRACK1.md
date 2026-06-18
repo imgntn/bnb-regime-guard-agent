@@ -20,6 +20,8 @@ The Track 1 competition controls are built into the live loop. The agent keeps t
 
 The agent defaults to dry-run mode and requires two explicit live-trading environment flags before it can execute. This keeps custody with the user while giving judges a reproducible agent loop, transparent strategy report, decision receipt, and clear on-chain proof path.
 
+The live path prints a runtime disclaimer and records the disclaimer version in each decision receipt. The disclaimer states that this is experimental hackathon software, not financial/legal/tax/trading advice, and that live BSC transactions can lose money through market movement, bad signals, fees, slippage, smart-contract risk, data outages, and wallet compromise. Live execution requires `TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK`.
+
 ## CoinMarketCap Usage
 
 The agent uses CoinMarketCap market data as the signal source. It supports the CMC x402 quotes endpoint through `CMC_USE_X402=1`, can be pointed at the x402 MCP endpoint with `CMC_X402_TRANSPORT=mcp`, records the x402 data access attempt in the decision receipt, and can fall back to CMC REST via `CMC_API_KEY` or a CMC-shaped sample snapshot for reproducible demos.
@@ -60,6 +62,7 @@ npm run agent-card
 npm run x402:wallet
 npm run analyze
 npm run once:dry
+npm run disclaimer
 npm run evidence
 npm run compete:status
 ```

@@ -107,6 +107,12 @@ Dry run should produce:
 
 Live trading is intentionally blocked unless both flags are set:
 
+Print the runtime disclaimer before enabling live trading:
+
+```powershell
+npm run disclaimer
+```
+
 ```powershell
 $env:LIVE_TRADING='1'
 $env:TWAK_CONFIRM_LIVE='I_ACCEPT_LIVE_TRADING_RISK'
@@ -117,6 +123,7 @@ npm run once:live
 For Git Bash:
 
 ```bash
+node src/cli.js disclaimer
 LIVE_TRADING=1 TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK MAX_USD_PER_TRADE=5 npm run once:live
 ```
 

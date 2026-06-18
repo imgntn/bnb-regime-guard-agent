@@ -4,6 +4,7 @@ import { validateIntent } from "../src/guardrails.js";
 import { analyzeSnapshot, buildQualificationIntent, buildTradeIntent, buildTradeIntentForSignal, sizeTradeUsd } from "../src/strategy.js";
 import { evaluateProfitabilityChecklist } from "../src/checklist.js";
 import { readJson } from "../src/config.js";
+import { LIVE_TRADING_ACK, liveTradingDisclaimerReceipt, liveTradingDisclaimerText } from "../src/disclaimer.js";
 
 const policy = readJson("config/risk-policy.json");
 
@@ -110,4 +111,15 @@ test("profitability checklist flags close calls and hard failures", () => {
   });
   assert.equal(fail.status, "fail");
   assert.ok(fail.failures.length >= 3);
+});
+
+test("live trading disclaimer names risk and acknowledgement gate", () => {
+  const text = liveTradingDisclaimerText();
+  const receipt = liveTradingDisclaimerReceipt();
+  assert.match(text, /not financial, investment, legal, tax, or professional trading advice/i);
+  assert.match(text, /can lose money/i);
+  assert.match(text, new RegExp(LIVE_TRADING_ACK));
+  assert.equal(receipt.acknowledgementEnv, "TWAK_CONFIRM_LIVE");
+  assert.equal(receipt.acknowledgementValue, LIVE_TRADING_ACK);
+  assert.ok(receipt.text.length >= 5);
 });

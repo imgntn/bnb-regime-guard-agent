@@ -154,6 +154,12 @@ COMPETITION_MODE=1 LIVE_TRADING=1 TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK M
 
 The live path refuses to run without both live flags. This is intentional.
 
+To print the runtime disclaimer without trading:
+
+```bash
+npm run disclaimer
+```
+
 ## Optional BNB Agent SDK Identity
 
 Generate the public agent card first:
@@ -173,4 +179,8 @@ This registers an ERC-8004 agent identity with the generated agent card endpoint
 
 ## Disclaimer
 
-This is hackathon software, not financial advice. Live trading can lose money.
+Regime Guard TWAK Agent is experimental hackathon software for the BNB Hack Track 1 competition. It is not financial, investment, legal, tax, or professional trading advice.
+
+Live mode can submit real BSC transactions through the user's local TWAK wallet and can lose money, including from bad signals, slippage, gas, fees, smart-contract risk, data/API outages, wallet compromise, and market volatility. The user keeps custody of keys and is solely responsible for wallet funding, position size, legal compliance, tax consequences, and every transaction the agent signs.
+
+The software does not guarantee profit, contest eligibility, ranking, judging outcomes, or prize payment. Use dry-run mode first, inspect receipts and quotes, keep trade sizes small, and only enable live mode with funds you are prepared to lose.
