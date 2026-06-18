@@ -57,6 +57,7 @@ https://github.com/imgntn/bnb-regime-guard-agent
 npm install
 npm test
 npm run agent-card
+npm run x402:wallet
 npm run analyze
 npm run once:dry
 npm run evidence

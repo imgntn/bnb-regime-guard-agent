@@ -29,6 +29,7 @@ The agent separates decision logic from signing authority. CMC Agent Hub data dr
 npm install
 npm test
 npm run agent-card
+npm run x402:wallet
 npm run analyze
 npm run once:dry
 npm run evidence
@@ -41,10 +42,14 @@ npm run evidence
 Set `CMC_USE_X402=1` to make the data layer call the CoinMarketCap x402 quotes endpoint before strategy evaluation. If the local environment does not have x402 payment transport available, the agent records the x402 payment requirement in the decision receipt and falls back to the reproducible sample data when `CMC_X402_FALLBACK=1`. The MCP endpoint is also configurable with `CMC_X402_TRANSPORT=mcp`.
 
 ```bash
+npm run x402:wallet
+npm run x402:status
 set CMC_USE_X402=1
 set CMC_X402_QUOTES_URL=https://pro-api.coinmarketcap.com/x402/v3/cryptocurrency/quotes/latest
 npm run once:dry
 ```
+
+`npm run x402:wallet` creates a separate Base payment wallet, writes its private key only to ignored local `.env`, and prints the public address to fund. The default per-request cap is `X402_MAX_USDC_PER_REQUEST=0.02`.
 
 The decision receipt includes `dataAccess.mode`, `endpoint`, `tool`, and `paymentRequired` when applicable.
 

@@ -5,6 +5,7 @@ import { liveModeAllowed, loadState, recordTrade, saveState, validateIntent } fr
 import { twak } from "./twak.js";
 import { evaluateProfitabilityChecklist } from "./checklist.js";
 import { latestDecisionReceipt, recordDecisionReceipt } from "./evidence.js";
+import { x402WalletStatus } from "./x402.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -89,8 +90,17 @@ export async function doctor() {
     x402Enabled: process.env.CMC_USE_X402 === "1",
     x402Endpoint: process.env.CMC_X402_MCP_URL ?? "https://mcp.coinmarketcap.com/x402/mcp"
   };
+  try {
+    checks.x402Wallet = { ok: true, result: await x402WalletStatus() };
+  } catch (error) {
+    checks.x402Wallet = { ok: false, error: error.message, code: error.code };
+  }
   checks.evidence = latestDecisionReceipt();
   return checks;
+}
+
+export async function x402Status() {
+  return x402WalletStatus();
 }
 
 export function latestEvidence() {

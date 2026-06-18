@@ -33,7 +33,9 @@ async function withAgentHubAccess(promise, symbols, mode) {
         paid: mode === "x402",
         endpoint: mode === "x402" ? x402Endpoint() : "https://pro-api.coinmarketcap.com",
         tool: mode === "x402" ? x402ToolName() : "quotes/latest",
-        symbols
+        symbols,
+        walletAddress: mode === "x402" ? x402WalletAddress() : null,
+        payment: snapshot.x402_payment ?? null
       }
     };
   } catch (error) {
@@ -50,7 +52,8 @@ async function withAgentHubAccess(promise, symbols, mode) {
         symbols,
         error: error.message,
         code: error.code ?? null,
-        paymentRequired: error.paymentRequired === true
+        paymentRequired: error.paymentRequired === true,
+        walletAddress: x402WalletAddress()
       }
     };
   }
@@ -64,18 +67,46 @@ async function fetchFromCmcX402(symbols) {
   endpoint.searchParams.set("symbol", symbols.join(","));
   endpoint.searchParams.set("convert", "USD");
 
-  const response = await fetch(endpoint);
-  if (response.status === 402) {
+  if (!process.env.X402_PRIVATE_KEY) {
     const error = new Error("CMC x402 endpoint requires payment transport");
     error.code = "X402_PAYMENT_REQUIRED";
     error.paymentRequired = true;
     throw error;
   }
-  if (!response.ok) {
-    throw new Error(`CMC x402 quotes request failed: ${response.status} ${response.statusText}`);
-  }
 
-  return cmcBodyToSnapshot(await response.json());
+  const { default: axios } = await import("axios");
+  const { wrapAxiosWithPaymentFromConfig, decodePaymentResponseHeader } = await import("@x402/axios");
+  const { ExactEvmScheme } = await import("@x402/evm");
+  const { privateKeyToAccount } = await import("viem/accounts");
+
+  const account = privateKeyToAccount(process.env.X402_PRIVATE_KEY);
+  const api = wrapAxiosWithPaymentFromConfig(axios.create(), {
+    schemes: [
+      {
+        network: process.env.X402_NETWORK ?? "eip155:8453",
+        client: new ExactEvmScheme(account)
+      }
+    ],
+    paymentRequirementsSelector: selectAffordableX402Requirement
+  });
+
+  try {
+    const response = await api.get(endpoint.toString());
+    const snapshot = cmcBodyToSnapshot(response.data);
+    if (!snapshot.assets.length) {
+      throw new Error("CMC x402 quotes response did not include quote data");
+    }
+    snapshot.x402_payment = decodeX402Payment(response.headers?.["payment-response"], decodePaymentResponseHeader);
+    return snapshot;
+  } catch (error) {
+    if (error.response?.status === 402) {
+      const wrapped = new Error("CMC x402 endpoint requires funded payment wallet");
+      wrapped.code = "X402_PAYMENT_REQUIRED";
+      wrapped.paymentRequired = true;
+      throw wrapped;
+    }
+    throw error;
+  }
 }
 
 async function fetchFromCmcX402Mcp(symbols) {
@@ -194,4 +225,35 @@ function x402ToolName() {
   return process.env.CMC_X402_TRANSPORT === "mcp"
     ? (process.env.CMC_X402_TOOL_NAME ?? "cryptocurrency_quotes_latest")
     : "x402/v3/cryptocurrency/quotes/latest";
+}
+
+function x402WalletAddress() {
+  return process.env.X402_WALLET_ADDRESS ?? null;
+}
+
+function selectAffordableX402Requirement(_version, accepts) {
+  if (!accepts?.length) {
+    throw new Error("No x402 payment requirements returned");
+  }
+  const sorted = [...accepts].sort((a, b) => paymentAtomicAmount(a) - paymentAtomicAmount(b));
+  const selected = sorted[0];
+  const maxUsdc = Number(process.env.X402_MAX_USDC_PER_REQUEST ?? "0.02");
+  const maxAtomic = Math.round(maxUsdc * 1_000_000);
+  if (paymentAtomicAmount(selected) > maxAtomic) {
+    throw new Error(`x402 request cost exceeds cap ${maxUsdc} USDC`);
+  }
+  return selected;
+}
+
+function paymentAtomicAmount(requirement) {
+  return Number(requirement.amount ?? requirement.value ?? requirement.maxAmountRequired ?? 0);
+}
+
+function decodeX402Payment(header, decoder) {
+  if (!header) return null;
+  try {
+    return decoder(header);
+  } catch {
+    return { rawHeader: header };
+  }
 }
