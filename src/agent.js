@@ -1,4 +1,4 @@
-import { analyzeSnapshot, buildTradeIntent, buildTradeIntentForSignal } from "./strategy.js";
+import { analyzeSnapshot, buildQualificationIntent, buildTradeIntent, buildTradeIntentForSignal } from "./strategy.js";
 import { loadMarketSnapshot } from "./cmc.js";
 import { ROOT, loadPolicy } from "./config.js";
 import { liveModeAllowed, loadState, recordTrade, saveState, validateIntent } from "./guardrails.js";
@@ -20,9 +20,9 @@ export async function runOnce({ live = false } = {}) {
   const policy = loadPolicy();
   const snapshot = await loadMarketSnapshot({ symbols: policy.eligibleSymbols });
   const report = analyzeSnapshot(snapshot, policy);
-  const routed = await chooseRoutedIntent(report, policy, snapshot);
-  const intent = routed.intent;
   const state = loadState();
+  const routed = await chooseRoutedIntent(report, policy, snapshot, state);
+  const intent = routed.intent;
   const validation = validateIntent(intent, report, policy, state);
 
   const result = { mode: live ? "live" : "dry-run", report, intent, routeSelection: routed.routeSelection, validation };
@@ -32,7 +32,7 @@ export async function runOnce({ live = false } = {}) {
 
   let quote = routed.quote;
   try {
-    quote ??= await twak.quoteSwap(intent);
+    quote ??= await quoteIntent(intent);
     result.quote = quote;
   } catch (error) {
     if (!live) {
@@ -60,8 +60,8 @@ export async function runOnce({ live = false } = {}) {
     };
   }
 
-  const execution = await twak.executeSwap(intent);
-  saveState(recordTrade(state, { intent, execution }));
+  const execution = await executeIntent(intent);
+  saveState(applyPositionUpdate(recordTrade(state, { intent, quote, execution }), intent, quote));
   return { ...result, executed: true, execution };
 }
 
@@ -194,12 +194,19 @@ export async function runShadowMonitor({ intervalMs = 15 * 60 * 1000 } = {}) {
   } while (true);
 }
 
-async function chooseRoutedIntent(report, policy, snapshot = { assets: [] }) {
+async function chooseRoutedIntent(report, policy, snapshot = { assets: [] }, state = loadState()) {
   const assets = assetMap(snapshot);
+  const exit = await maybeBuildExitIntent(state.livePosition, report, policy);
+  if (exit) {
+    return exit;
+  }
+
   const candidates = report.signals.filter(
     (signal) => signal.action === "ROTATE_IN" && signal.confidence >= policy.minConfidence
   );
   if (!candidates.length) {
+    const qualification = await maybeBuildQualificationIntent(report, policy, state);
+    if (qualification) return qualification;
     return {
       intent: buildTradeIntent(report, policy),
       routeSelection: { mode: "none", reason: "no ROTATE_IN candidates above confidence threshold" }
@@ -217,6 +224,8 @@ async function chooseRoutedIntent(report, policy, snapshot = { assets: [] }) {
     (scan) => scan.ok && scan.checklist?.status !== "fail" && Math.abs(scan.roundTripPnlPct) <= policy.maxRoundTripDragPct
   );
   if (!executable.length) {
+    const qualification = await maybeBuildQualificationIntent(report, policy, state, scans);
+    if (qualification) return qualification;
     return {
       intent: { action: "NO_TRADE", reason: "no candidate passed route-drag guardrail" },
       routeSelection: { mode: "route-adjusted", candidates: scans }
@@ -232,8 +241,96 @@ async function chooseRoutedIntent(report, policy, snapshot = { assets: [] }) {
   };
 }
 
+async function maybeBuildExitIntent(position, report, policy) {
+  if (!position?.open) return null;
+
+  const intent = {
+    action: "SWAP_EXACT",
+    intentType: "EXIT",
+    chain: policy.chain,
+    fromSymbol: position.symbol,
+    toSymbol: policy.baseStable,
+    fromAssetId: position.assetId,
+    toAssetId: policy.tokenAddresses?.[policy.baseStable] ?? policy.baseStable,
+    amount: position.amount,
+    slippagePct: policy.slippagePct,
+    rationale: []
+  };
+  let quote;
+  try {
+    quote = await quoteIntent(intent);
+  } catch (error) {
+    return {
+      intent: { action: "NO_TRADE", reason: "open position could not be exit-quoted" },
+      routeSelection: {
+        mode: "position-exit-unavailable",
+        position: position.symbol,
+        error: error.message,
+        code: error.code
+      }
+    };
+  }
+  const markOutput = parseQuotedAmount(quote.output);
+  const pnl = markOutput.amount - position.entryCost.amount;
+  const pnlPct = position.entryCost.amount ? (pnl / position.entryCost.amount) * 100 : 0;
+  const ageHours = (Date.now() - Date.parse(position.openedAt)) / 36e5;
+  const reasons = [];
+
+  if (report.regime.label === "risk_off") reasons.push("market regime moved risk_off");
+  if (pnlPct <= -policy.positionStopLossPct) reasons.push(`position stop loss hit at ${pnlPct.toFixed(2)}%`);
+  if (pnlPct >= policy.takeProfitPct) reasons.push(`take profit hit at ${pnlPct.toFixed(2)}%`);
+  if (ageHours >= policy.maxPositionHoldHours && pnlPct > 0) {
+    reasons.push(`position age ${ageHours.toFixed(1)}h exceeded target horizon with positive PnL`);
+  }
+
+  if (!reasons.length) return null;
+  return {
+    intent: { ...intent, rationale: reasons },
+    quote,
+    routeSelection: {
+      mode: "position-exit",
+      position: position.symbol,
+      pnlPct: Number(pnlPct.toFixed(4)),
+      ageHours: Number(ageHours.toFixed(2)),
+      reasons
+    }
+  };
+}
+
+async function maybeBuildQualificationIntent(report, policy, state, failedCandidates = []) {
+  const today = new Date().toISOString().slice(0, 10);
+  const tradesToday = (state.tradeLog ?? []).filter((trade) => String(trade.at).startsWith(today)).length;
+  if (tradesToday >= policy.dailyTradeFloor || report.regime.label === "risk_off") {
+    return null;
+  }
+
+  const scans = [];
+  for (const target of policy.qualificationTargets ?? []) {
+    const intent = buildQualificationIntent(policy, target);
+    const scan = await scanCandidateRoute(intent.signal, policy, { regime: report.regime, intent });
+    scans.push(scan);
+  }
+  const executable = scans
+    .filter((scan) => scan.ok && Math.abs(scan.roundTripPnlPct) <= policy.qualificationMaxRoundTripDragPct)
+    .sort((a, b) => Math.abs(a.roundTripPnlPct) - Math.abs(b.roundTripPnlPct));
+
+  if (!executable.length) return null;
+  const selected = executable[0];
+  return {
+    intent: selected.intent,
+    quote: selected.entryQuote,
+    routeSelection: {
+      mode: "qualification-floor",
+      reason: "minimum daily competition trade without forcing a high-risk asset entry",
+      failedCandidates,
+      selected: selected.symbol,
+      candidates: scans
+    }
+  };
+}
+
 async function scanCandidateRoute(signal, policy, context = {}) {
-  const intent = buildTradeIntentForSignal(signal, policy);
+  const intent = context.intent ?? buildTradeIntentForSignal(signal, policy);
   try {
     const entryQuote = await twak.quoteSwap(intent);
     const entryInput = parseQuotedAmount(entryQuote.input);
@@ -287,6 +384,51 @@ async function scanCandidateRoute(signal, policy, context = {}) {
       code: error.code
     };
   }
+}
+
+async function quoteIntent(intent) {
+  if (intent.action === "SWAP_EXACT") {
+    return twak.quoteExactSwap(intent);
+  }
+  return twak.quoteSwap(intent);
+}
+
+async function executeIntent(intent) {
+  if (intent.action === "SWAP_EXACT") {
+    return twak.executeExactSwap(intent);
+  }
+  return twak.executeSwap(intent);
+}
+
+function applyPositionUpdate(state, intent, quote) {
+  if (intent.intentType === "EXIT") {
+    return {
+      ...state,
+      livePosition: {
+        ...state.livePosition,
+        open: false,
+        closedAt: new Date().toISOString(),
+        exitQuote: quote
+      }
+    };
+  }
+  if (intent.intentType !== "ROTATE_IN") return state;
+
+  const entryInput = parseQuotedAmount(quote.input);
+  const entryOutput = parseQuotedAmount(quote.output);
+  return {
+    ...state,
+    livePosition: {
+      open: true,
+      openedAt: new Date().toISOString(),
+      symbol: intent.toSymbol,
+      assetId: intent.toAssetId,
+      amount: entryOutput.amount,
+      entryCost: entryInput,
+      entryQuote: quote,
+      signal: intent.signal
+    }
+  };
 }
 
 function assetMap(snapshot) {

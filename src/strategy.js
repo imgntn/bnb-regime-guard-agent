@@ -177,17 +177,32 @@ export function selectSignalCandidate(report, policy) {
   );
 }
 
-export function buildTradeIntentForSignal(signal, policy) {
+export function buildTradeIntentForSignal(signal, policy, overrides = {}) {
   return {
     action: "SWAP",
     chain: policy.chain,
-    fromSymbol: policy.baseStable,
+    intentType: overrides.intentType ?? "ROTATE_IN",
+    fromSymbol: overrides.fromSymbol ?? policy.baseStable,
     toSymbol: signal.symbol,
-    fromAssetId: policy.tokenAddresses?.[policy.baseStable] ?? policy.baseStable,
+    fromAssetId: policy.tokenAddresses?.[overrides.fromSymbol ?? policy.baseStable] ?? overrides.fromSymbol ?? policy.baseStable,
     toAssetId: policy.tokenAddresses?.[signal.symbol] ?? signal.symbol,
-    usdAmount: policy.maxUsdPerTrade,
+    usdAmount: overrides.usdAmount ?? policy.maxUsdPerTrade,
     slippagePct: policy.slippagePct,
     rationale: signal.reasons,
     signal
   };
+}
+
+export function buildQualificationIntent(policy, targetSymbol) {
+  const symbol = String(targetSymbol).toUpperCase();
+  return buildTradeIntentForSignal({
+    symbol,
+    action: "ROTATE_IN",
+    score: 0,
+    confidence: 100,
+    reasons: ["minimum daily competition trade with stable-to-stable route"]
+  }, policy, {
+    intentType: "QUALIFICATION",
+    usdAmount: Math.min(policy.qualificationTradeUsd, policy.maxUsdPerTrade)
+  });
 }

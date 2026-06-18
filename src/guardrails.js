@@ -6,9 +6,14 @@ const statePath = path.join(ROOT, "state", "agent-state.json");
 
 export function loadState() {
   if (!fs.existsSync(statePath)) {
-    return { tradeLog: [], equityHighWatermark: null };
+    return { tradeLog: [], equityHighWatermark: null, livePosition: null };
   }
-  return JSON.parse(fs.readFileSync(statePath, "utf8"));
+  return {
+    tradeLog: [],
+    equityHighWatermark: null,
+    livePosition: null,
+    ...JSON.parse(fs.readFileSync(statePath, "utf8"))
+  };
 }
 
 export function saveState(state) {
@@ -21,20 +26,22 @@ export function validateIntent(intent, report, policy, state = loadState()) {
   const tradesToday = state.tradeLog.filter((trade) => String(trade.at).startsWith(today)).length;
   const failures = [];
 
-  if (intent.action !== "SWAP") {
+  if (!["SWAP", "SWAP_EXACT"].includes(intent.action)) {
     failures.push(intent.reason ?? "no swap intent");
   }
   if (tradesToday >= policy.maxDailyTrades) {
     failures.push(`daily trade cap reached (${policy.maxDailyTrades})`);
   }
-  if (intent.usdAmount > policy.maxUsdPerTrade) {
+  if (intent.usdAmount && intent.usdAmount > policy.maxUsdPerTrade) {
     failures.push(`trade size ${intent.usdAmount} exceeds max ${policy.maxUsdPerTrade}`);
   }
-  if (report.regime.label === "risk_off") {
+  if (report.regime.label === "risk_off" && intent.intentType !== "EXIT") {
     failures.push("risk_off regime blocks new rotate-in trades");
   }
-  if (!policy.eligibleSymbols.includes(intent.toSymbol)) {
-    failures.push(`${intent.toSymbol} is outside agent allowlist`);
+  for (const symbol of [intent.fromSymbol, intent.toSymbol].filter(Boolean)) {
+    if (!policy.eligibleSymbols.includes(symbol)) {
+      failures.push(`${symbol} is outside agent allowlist`);
+    }
   }
 
   return { ok: failures.length === 0, failures, tradesToday };
@@ -50,4 +57,3 @@ export function recordTrade(state, trade) {
 export function liveModeAllowed() {
   return process.env.LIVE_TRADING === "1" && process.env.TWAK_CONFIRM_LIVE === "I_ACCEPT_LIVE_TRADING_RISK";
 }
-

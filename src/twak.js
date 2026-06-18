@@ -84,5 +84,16 @@ export const twak = {
       String(usdAmount),
       "--slippage",
       String(slippagePct)
+    ], { timeoutMs: 180000 }),
+  executeExactSwap: ({ amount, fromSymbol, toSymbol, fromAssetId, toAssetId, chain, slippagePct }) =>
+    runTwak([
+      "swap",
+      String(amount),
+      fromAssetId ?? fromSymbol,
+      toAssetId ?? toSymbol,
+      "--chain",
+      chain,
+      "--slippage",
+      String(slippagePct)
     ], { timeoutMs: 180000 })
 };

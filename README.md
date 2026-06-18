@@ -13,7 +13,8 @@ Regime Guard TWAK Agent is the live-execution version of the Regime Guard strate
 - Builds one guarded daily TWAK swap intent on BSC.
 - Re-quotes candidate routes and penalizes high round-trip drag before selecting a trade.
 - Uses `twak swap --quote-only` before every possible execution.
-- Enforces trade size, daily trade count, slippage, allowlist, and regime gates.
+- Enforces trade size, daily trade floor/cap, slippage, allowlist, and regime gates.
+- Tracks the live position it opened and can exit on risk-off, stop-loss, take-profit, or stale-position conditions.
 - Registers the agent wallet for the BNB Hack competition through `twak compete register`.
 - Includes optional BNB Agent SDK ERC-8004 identity registration.
 
@@ -54,6 +55,16 @@ Live and dry-run selection use the same route-aware policy:
 - Final choice is ranked by strategy score minus route-drag penalty.
 
 To keep a local quote/PnL history, run `npm run shadow:tick`. It appends a timestamped mark and scan to ignored local state at `state/shadow-monitor.jsonl`.
+
+## Competition Controls
+
+Track 1 ranking is driven by live PnL, but qualification also depends on registered on-chain execution, eligible assets, non-dust capital, minimum trade count, and staying inside the drawdown gate. The agent is tuned for those constraints:
+
+- It only builds swaps where both input and output symbols are in the competition allowlist.
+- It allows up to two trades per day so one trade can satisfy the daily floor while a second can exit risk if needed.
+- If no high-conviction asset passes the route and profitability checks, it can attempt a small stable-to-stable qualification swap instead of forcing a volatile entry.
+- Open live positions are marked through a reverse TWAK quote before new entries; the agent exits on risk-off, `POSITION_STOP_LOSS_PCT`, `TAKE_PROFIT_PCT`, or `MAX_POSITION_HOLD_HOURS`.
+- The default trade size is intentionally small until the wallet is funded and registered.
 
 ## TWAK Setup
 
@@ -97,13 +108,14 @@ Dry run is the default. To execute a single guarded live swap:
 set LIVE_TRADING=1
 set TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK
 set MAX_USD_PER_TRADE=5
+set MAX_DAILY_TRADES=2
 npm run once:live
 ```
 
 For Git Bash:
 
 ```bash
-LIVE_TRADING=1 TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK MAX_USD_PER_TRADE=5 npm run once:live
+LIVE_TRADING=1 TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK MAX_USD_PER_TRADE=5 MAX_DAILY_TRADES=2 npm run once:live
 ```
 
 The live path refuses to run without both live flags. This is intentional.

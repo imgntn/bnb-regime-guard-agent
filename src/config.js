@@ -17,8 +17,14 @@ export function loadPolicy() {
     ...policy,
     maxUsdPerTrade: Number(process.env.MAX_USD_PER_TRADE ?? policy.maxUsdPerTrade),
     maxDailyTrades: Number(process.env.MAX_DAILY_TRADES ?? policy.maxDailyTrades),
+    dailyTradeFloor: Number(process.env.DAILY_TRADE_FLOOR ?? policy.dailyTradeFloor),
+    qualificationTradeUsd: Number(process.env.QUALIFICATION_TRADE_USD ?? policy.qualificationTradeUsd),
+    qualificationMaxRoundTripDragPct: Number(process.env.QUALIFICATION_MAX_ROUND_TRIP_DRAG_PCT ?? policy.qualificationMaxRoundTripDragPct),
     dailyLossStopPct: Number(process.env.MAX_DAILY_LOSS_PCT ?? policy.dailyLossStopPct),
     weeklyDrawdownStopPct: Number(process.env.MAX_WEEKLY_DRAWDOWN_PCT ?? policy.weeklyDrawdownStopPct),
+    positionStopLossPct: Number(process.env.POSITION_STOP_LOSS_PCT ?? policy.positionStopLossPct),
+    takeProfitPct: Number(process.env.TAKE_PROFIT_PCT ?? policy.takeProfitPct),
+    maxPositionHoldHours: Number(process.env.MAX_POSITION_HOLD_HOURS ?? policy.maxPositionHoldHours),
     slippagePct: Number(process.env.SLIPPAGE_PCT ?? policy.slippagePct)
   };
 }
