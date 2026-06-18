@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { validateIntent } from "../src/guardrails.js";
-import { analyzeSnapshot, buildQualificationIntent, buildTradeIntent, buildTradeIntentForSignal } from "../src/strategy.js";
+import { analyzeSnapshot, buildQualificationIntent, buildTradeIntent, buildTradeIntentForSignal, sizeTradeUsd } from "../src/strategy.js";
 import { evaluateProfitabilityChecklist } from "../src/checklist.js";
 import { readJson } from "../src/config.js";
 
@@ -31,6 +31,11 @@ test("trade intents can be built for any allowlisted token with a configured add
   const intent = buildTradeIntentForSignal(signal, policy);
   assert.equal(intent.toSymbol, "FLOKI");
   assert.equal(intent.toAssetId, policy.tokenAddresses.FLOKI);
+});
+
+test("competition sizing only scales high-conviction signals", () => {
+  assert.equal(sizeTradeUsd({ score: 94, confidence: 95 }, policy), policy.maxUsdPerTrade);
+  assert.equal(sizeTradeUsd({ score: 100, confidence: 95 }, policy), policy.competitionMaxUsdPerTrade);
 });
 
 test("qualification intent is a small eligible stable-to-stable swap", () => {

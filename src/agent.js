@@ -4,6 +4,7 @@ import { ROOT, loadPolicy } from "./config.js";
 import { liveModeAllowed, loadState, recordTrade, saveState, validateIntent } from "./guardrails.js";
 import { twak } from "./twak.js";
 import { evaluateProfitabilityChecklist } from "./checklist.js";
+import { latestDecisionReceipt, recordDecisionReceipt } from "./evidence.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -27,7 +28,8 @@ export async function runOnce({ live = false } = {}) {
 
   const result = { mode: live ? "live" : "dry-run", report, intent, routeSelection: routed.routeSelection, validation };
   if (!validation.ok) {
-    return { ...result, skipped: true };
+    const skipped = { ...result, skipped: true };
+    return attachReceipt(skipped, snapshot);
   }
 
   let quote = routed.quote;
@@ -37,7 +39,7 @@ export async function runOnce({ live = false } = {}) {
   } catch (error) {
     if (!live) {
       return {
-        ...result,
+        ...attachReceipt(result, snapshot),
         executed: false,
         quoteSkipped: {
           reason: "TWAK quote unavailable until auth and wallet setup are complete.",
@@ -50,19 +52,19 @@ export async function runOnce({ live = false } = {}) {
   }
 
   if (!live) {
-    return { ...result, executed: false };
+    return attachReceipt({ ...result, executed: false }, snapshot);
   }
   if (!liveModeAllowed()) {
-    return {
+    return attachReceipt({
       ...result,
       executed: false,
       blocked: "Set LIVE_TRADING=1 and TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK to execute swaps."
-    };
+    }, snapshot);
   }
 
   const execution = await executeIntent(intent);
   saveState(applyPositionUpdate(recordTrade(state, { intent, quote, execution }), intent, quote));
-  return { ...result, executed: true, execution };
+  return attachReceipt({ ...result, executed: true, execution }, snapshot);
 }
 
 export async function doctor() {
@@ -82,7 +84,17 @@ export async function doctor() {
     ok: Boolean(process.env.CMC_API_KEY) || process.env.CMC_USE_X402 === "1",
     mode: process.env.CMC_API_KEY ? "rest" : process.env.CMC_USE_X402 === "1" ? "x402" : "sample-fallback"
   };
+  checks.agentHub = {
+    ok: Boolean(process.env.CMC_API_KEY) || process.env.CMC_USE_X402 === "1",
+    x402Enabled: process.env.CMC_USE_X402 === "1",
+    x402Endpoint: process.env.CMC_X402_MCP_URL ?? "https://mcp.coinmarketcap.com/x402/mcp"
+  };
+  checks.evidence = latestDecisionReceipt();
   return checks;
+}
+
+export function latestEvidence() {
+  return latestDecisionReceipt();
 }
 
 export async function openShadowTrade() {
@@ -441,4 +453,18 @@ function parseQuotedAmount(text) {
     throw new Error(`Cannot parse quoted amount: ${text}`);
   }
   return { amount: Number(match[1]), symbol: match[2] };
+}
+
+function attachReceipt(result, snapshot) {
+  const evidence = recordDecisionReceipt({
+    mode: result.mode,
+    snapshot,
+    report: result.report,
+    routeSelection: result.routeSelection,
+    intent: result.intent,
+    validation: result.validation,
+    quote: result.quote,
+    execution: result.execution
+  });
+  return { ...result, evidence: { decisionId: evidence.receipt.decisionId, latestPath: evidence.latestPath, ledgerPath: evidence.ledgerPath } };
 }

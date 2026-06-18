@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { analyze, doctor, markShadowTrade, openShadowTrade, recordShadowTick, runOnce, runShadowMonitor, scanShadowCandidates } from "./agent.js";
+import { analyze, doctor, latestEvidence, markShadowTrade, openShadowTrade, recordShadowTick, runOnce, runShadowMonitor, scanShadowCandidates } from "./agent.js";
 import { twak } from "./twak.js";
 
 function print(data) {
@@ -10,7 +10,7 @@ async function main(argv) {
   const [command, ...args] = argv;
   if (!command || command === "help") {
     print({
-      commands: ["doctor", "analyze", "run --dry-run", "run --live", "shadow-open", "shadow-mark", "shadow-scan", "shadow-tick", "shadow-monitor", "loop --dry-run", "compete-status", "register"],
+      commands: ["doctor", "analyze", "run --dry-run", "run --live", "evidence", "shadow-open", "shadow-mark", "shadow-scan", "shadow-tick", "shadow-monitor", "loop --dry-run", "compete-status", "register"],
       note: "Live mode requires LIVE_TRADING=1 and TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK."
     });
     return 0;
@@ -26,6 +26,10 @@ async function main(argv) {
   }
   if (command === "run") {
     print(await runOnce({ live: args.includes("--live") }));
+    return 0;
+  }
+  if (command === "evidence") {
+    print(latestEvidence());
     return 0;
   }
   if (command === "shadow-open") {

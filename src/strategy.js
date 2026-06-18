@@ -152,7 +152,9 @@ export function analyzeSnapshot(snapshot, policy) {
     regime,
     policy: {
       chain: policy.chain,
+      competitionMode: policy.competitionMode,
       maxUsdPerTrade: policy.maxUsdPerTrade,
+      competitionMaxUsdPerTrade: policy.competitionMaxUsdPerTrade,
       maxDailyTrades: policy.maxDailyTrades,
       slippagePct: policy.slippagePct,
       dailyLossStopPct: policy.dailyLossStopPct,
@@ -178,6 +180,7 @@ export function selectSignalCandidate(report, policy) {
 }
 
 export function buildTradeIntentForSignal(signal, policy, overrides = {}) {
+  const usdAmount = overrides.usdAmount ?? sizeTradeUsd(signal, policy);
   return {
     action: "SWAP",
     chain: policy.chain,
@@ -186,11 +189,20 @@ export function buildTradeIntentForSignal(signal, policy, overrides = {}) {
     toSymbol: signal.symbol,
     fromAssetId: policy.tokenAddresses?.[overrides.fromSymbol ?? policy.baseStable] ?? overrides.fromSymbol ?? policy.baseStable,
     toAssetId: policy.tokenAddresses?.[signal.symbol] ?? signal.symbol,
-    usdAmount: overrides.usdAmount ?? policy.maxUsdPerTrade,
+    usdAmount,
     slippagePct: policy.slippagePct,
     rationale: signal.reasons,
     signal
   };
+}
+
+export function sizeTradeUsd(signal, policy) {
+  const base = Number(policy.maxUsdPerTrade);
+  if (!policy.competitionMode) return base;
+  if (signal.score < policy.competitionMinSizingScore || signal.confidence < policy.competitionMinSizingConfidence) {
+    return base;
+  }
+  return Number(Math.min(base * policy.competitionSizeMultiplier, policy.competitionMaxUsdPerTrade).toFixed(2));
 }
 
 export function buildQualificationIntent(policy, targetSymbol) {

@@ -32,8 +32,11 @@ export function validateIntent(intent, report, policy, state = loadState()) {
   if (tradesToday >= policy.maxDailyTrades) {
     failures.push(`daily trade cap reached (${policy.maxDailyTrades})`);
   }
-  if (intent.usdAmount && intent.usdAmount > policy.maxUsdPerTrade) {
-    failures.push(`trade size ${intent.usdAmount} exceeds max ${policy.maxUsdPerTrade}`);
+  const maxTradeUsd = policy.competitionMode
+    ? Math.max(policy.maxUsdPerTrade, policy.competitionMaxUsdPerTrade)
+    : policy.maxUsdPerTrade;
+  if (intent.usdAmount && intent.usdAmount > maxTradeUsd) {
+    failures.push(`trade size ${intent.usdAmount} exceeds max ${maxTradeUsd}`);
   }
   if (report.regime.label === "risk_off" && intent.intentType !== "EXIT") {
     failures.push("risk_off regime blocks new rotate-in trades");

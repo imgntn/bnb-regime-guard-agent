@@ -10,19 +10,19 @@ Track 1: Autonomous Trading Agents
 
 ## Short Description
 
-Regime Guard TWAK Agent is a self-custody BNB Chain trading agent that reads CoinMarketCap market data, generates regime-aware rotation signals, quotes swaps through Trust Wallet Agent Kit, and executes only inside explicit risk guardrails.
+Regime Guard TWAK Agent is a self-custody BNB Chain trading agent that reads CoinMarketCap Agent Hub data, generates regime-aware rotation signals, quotes swaps through Trust Wallet Agent Kit, writes auditable decision receipts, and executes only inside explicit risk guardrails.
 
 ## Long Description
 
-Regime Guard TWAK Agent converts CoinMarketCap market data into a BNB Chain spot-rotation decision. It classifies the broader market as risk-on, mixed, or risk-off, ranks eligible assets by trend, momentum, volatility, and liquidity, then route-checks candidates through Trust Wallet Agent Kit before creating a guarded swap intent. The execution layer is TWAK: every live trade is quoted first through `twak swap --quote-only`, checked against allowlists, route drag, slippage, daily trade count, and per-trade size limits, and only then submitted through the local self-custody TWAK wallet.
+Regime Guard TWAK Agent converts CoinMarketCap Agent Hub market data into a BNB Chain spot-rotation decision. It classifies the broader market as risk-on, mixed, or risk-off, ranks eligible assets by trend, momentum, volatility, and liquidity, then route-checks candidates through Trust Wallet Agent Kit before creating a guarded swap intent. The execution layer is TWAK: every live trade is quoted first through `twak swap --quote-only`, checked against allowlists, route drag, slippage, daily trade count, and per-trade size limits, and only then submitted through the local self-custody TWAK wallet.
 
-The Track 1 competition controls are built into the live loop. The agent keeps trades inside the eligible token list, allows a daily trade floor plus an emergency exit slot, uses a small stable-to-stable qualification fallback when no volatile candidate passes, and marks open positions through reverse TWAK quotes so it can exit on risk-off, stop-loss, take-profit, or stale-position conditions.
+The Track 1 competition controls are built into the live loop. The agent keeps trades inside the eligible token list, allows a daily trade floor plus an emergency exit slot, uses a small stable-to-stable qualification fallback when no volatile candidate passes, and marks open positions through reverse TWAK quotes so it can exit on risk-off, stop-loss, take-profit, or stale-position conditions. Competition mode can scale high-conviction signals modestly while preserving route and drawdown gates.
 
-The agent defaults to dry-run mode and requires two explicit live-trading environment flags before it can execute. This keeps custody with the user while giving judges a reproducible agent loop, transparent strategy report, and clear on-chain proof path.
+The agent defaults to dry-run mode and requires two explicit live-trading environment flags before it can execute. This keeps custody with the user while giving judges a reproducible agent loop, transparent strategy report, decision receipt, and clear on-chain proof path.
 
 ## CoinMarketCap Usage
 
-The agent uses CoinMarketCap market data as the signal source. In demo mode it falls back to a CMC-shaped sample snapshot. In live mode it can use CMC REST via `CMC_API_KEY`, with the repo structured so x402 access can be routed through TWAK for paid requests.
+The agent uses CoinMarketCap market data as the signal source. It supports the CMC x402 quotes endpoint through `CMC_USE_X402=1`, can be pointed at the x402 MCP endpoint with `CMC_X402_TRANSPORT=mcp`, records the x402 data access attempt in the decision receipt, and can fall back to CMC REST via `CMC_API_KEY` or a CMC-shaped sample snapshot for reproducible demos.
 
 ## Trust Wallet Agent Kit Usage
 
@@ -37,7 +37,11 @@ TWAK is the only execution layer. The agent uses:
 
 ## BNB AI Agent SDK Usage
 
-The repo includes optional ERC-8004 identity registration through the BNB Agent SDK in `scripts/register-bnb-agent.py`. This is separate from the BNB Hack competition wallet registration.
+The repo includes a generated public agent card at `docs/agent-card.json` and ERC-8004 identity registration through the BNB Agent SDK in `scripts/register-bnb-agent.py`. The agent card describes the CMC x402 data path, TWAK execution surfaces, self-custody model, and evidence receipt schema. This is separate from the BNB Hack competition wallet registration.
+
+## Evidence And Demo Trail
+
+Every run writes a decision receipt with hashes of the normalized market snapshot, policy, strategy report, and intent. When TWAK is configured, the receipt also includes the quote provider, input/output amounts, minimum received, price impact, and live transaction hash fields when execution occurs.
 
 ## Repository Link
 
@@ -52,8 +56,10 @@ https://github.com/imgntn/bnb-regime-guard-agent
 ```bash
 npm install
 npm test
+npm run agent-card
 npm run analyze
 npm run once:dry
+npm run evidence
 npm run compete:status
 ```
 

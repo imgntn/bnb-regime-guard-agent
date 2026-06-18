@@ -15,6 +15,11 @@ export function loadPolicy() {
   const policy = readJson("config/risk-policy.json");
   return {
     ...policy,
+    competitionMode: boolEnv("COMPETITION_MODE", policy.competitionMode),
+    competitionMaxUsdPerTrade: Number(process.env.COMPETITION_MAX_USD_PER_TRADE ?? policy.competitionMaxUsdPerTrade),
+    competitionSizeMultiplier: Number(process.env.COMPETITION_SIZE_MULTIPLIER ?? policy.competitionSizeMultiplier),
+    competitionMinSizingScore: Number(process.env.COMPETITION_MIN_SIZING_SCORE ?? policy.competitionMinSizingScore),
+    competitionMinSizingConfidence: Number(process.env.COMPETITION_MIN_SIZING_CONFIDENCE ?? policy.competitionMinSizingConfidence),
     maxUsdPerTrade: Number(process.env.MAX_USD_PER_TRADE ?? policy.maxUsdPerTrade),
     maxDailyTrades: Number(process.env.MAX_DAILY_TRADES ?? policy.maxDailyTrades),
     dailyTradeFloor: Number(process.env.DAILY_TRADE_FLOOR ?? policy.dailyTradeFloor),
