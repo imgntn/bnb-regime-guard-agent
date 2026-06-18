@@ -122,10 +122,20 @@ LIVE_TRADING=1 TWAK_CONFIRM_LIVE=I_ACCEPT_LIVE_TRADING_RISK MAX_USD_PER_TRADE=5 
 
 Save the first successful BSC trade transaction hash for DoraHacks.
 
-## 8. Security Notes
+## 8. Shadow Trading Before Funding
+
+You can record a no-funds virtual trade and mark it later:
+
+```powershell
+npm run shadow:open
+npm run shadow:mark
+```
+
+`shadow:open` saves the proposed TWAK quote to ignored local state. `shadow:mark` quotes the reverse side and estimates unrealized PnL. This is a quote-based approximation, not a guarantee of live execution price.
+
+## 9. Security Notes
 
 - Rotate TWAK credentials if they were ever pasted into chat, logs, screenshots, or issue trackers.
 - Never put TWAK wallet passwords, private keys, or mnemonics into GitHub Actions.
 - Keep live trading local unless you intentionally choose a server deployment model.
 - Start with the smallest practical `MAX_USD_PER_TRADE`.
-

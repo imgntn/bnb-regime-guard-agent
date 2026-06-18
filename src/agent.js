@@ -80,3 +80,71 @@ export async function doctor() {
   };
   return checks;
 }
+
+export async function openShadowTrade() {
+  const policy = loadPolicy();
+  const state = loadState();
+  if (state.shadowPosition?.open) {
+    return { skipped: true, reason: "shadow position already open", shadowPosition: state.shadowPosition };
+  }
+
+  const run = await runOnce({ live: false });
+  if (!run.quote) {
+    return { skipped: true, reason: "no executable quote available", run };
+  }
+
+  const position = {
+    open: true,
+    openedAt: new Date().toISOString(),
+    intent: run.intent,
+    entryQuote: run.quote,
+    entryInput: parseQuotedAmount(run.quote.input),
+    entryOutput: parseQuotedAmount(run.quote.output)
+  };
+
+  saveState({ ...state, shadowPosition: position });
+  return { opened: true, shadowPosition: position, policy };
+}
+
+export async function markShadowTrade() {
+  const policy = loadPolicy();
+  const state = loadState();
+  const position = state.shadowPosition;
+  if (!position?.open) {
+    return { skipped: true, reason: "no open shadow position" };
+  }
+
+  const markQuote = await twak.quoteExactSwap({
+    amount: position.entryOutput.amount,
+    fromSymbol: position.intent.toSymbol,
+    toSymbol: position.intent.fromSymbol,
+    fromAssetId: position.intent.toAssetId,
+    toAssetId: position.intent.fromAssetId,
+    chain: policy.chain,
+    slippagePct: policy.slippagePct
+  });
+  const markOutput = parseQuotedAmount(markQuote.output);
+  const entryCost = position.entryInput.amount;
+  const pnl = markOutput.amount - entryCost;
+  const pnlPct = entryCost ? (pnl / entryCost) * 100 : 0;
+
+  return {
+    openedAt: position.openedAt,
+    markedAt: new Date().toISOString(),
+    asset: position.intent.toSymbol,
+    entryCost: position.entryInput,
+    positionSize: position.entryOutput,
+    markQuote,
+    markOutput,
+    unrealizedPnl: Number(pnl.toFixed(8)),
+    unrealizedPnlPct: Number(pnlPct.toFixed(4))
+  };
+}
+
+function parseQuotedAmount(text) {
+  const match = String(text).match(/^([0-9.]+)\s+(.+)$/);
+  if (!match) {
+    throw new Error(`Cannot parse quoted amount: ${text}`);
+  }
+  return { amount: Number(match[1]), symbol: match[2] };
+}

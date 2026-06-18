@@ -31,6 +31,17 @@ npm run once:dry
 
 `npm run once:dry` quotes the proposed swap through TWAK when TWAK is configured. Without CMC credentials, `npm run analyze` uses `data/sample-market-snapshot.json`.
 
+## Shadow Trading
+
+Shadow trading records the quote the agent would have taken and later marks that virtual position back to the stable asset. It does not move funds.
+
+```bash
+npm run shadow:open
+npm run shadow:mark
+```
+
+This is useful for measuring spread, slippage, and short-term signal behavior before enabling live mode.
+
 ## TWAK Setup
 
 Detailed wallet setup is in `docs/TWAK_WALLET_SETUP.md`.

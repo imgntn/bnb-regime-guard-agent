@@ -61,6 +61,18 @@ export const twak = {
       String(slippagePct),
       "--quote-only"
     ]),
+  quoteExactSwap: ({ amount, fromSymbol, toSymbol, fromAssetId, toAssetId, chain, slippagePct }) =>
+    runTwak([
+      "swap",
+      String(amount),
+      fromAssetId ?? fromSymbol,
+      toAssetId ?? toSymbol,
+      "--chain",
+      chain,
+      "--slippage",
+      String(slippagePct),
+      "--quote-only"
+    ]),
   executeSwap: ({ usdAmount, fromSymbol, toSymbol, fromAssetId, toAssetId, chain, slippagePct }) =>
     runTwak([
       "swap",
