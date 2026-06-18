@@ -40,6 +40,7 @@ Shadow trading records the quote the agent would have taken and later marks that
 npm run shadow:open
 npm run shadow:mark
 npm run shadow:scan
+npm run shadow:tick
 ```
 
 This is useful for measuring spread, slippage, candidate routing cost, and short-term signal behavior before enabling live mode.
@@ -50,6 +51,8 @@ Live and dry-run selection use the same route-aware policy:
 - TWAK must quote both entry and reverse mark routes.
 - Immediate round-trip drag must stay below `maxRoundTripDragPct`.
 - Final choice is ranked by strategy score minus route-drag penalty.
+
+To keep a local quote/PnL history, run `npm run shadow:tick`. It appends a timestamped mark and scan to ignored local state at `state/shadow-monitor.jsonl`.
 
 ## TWAK Setup
 

@@ -13,6 +13,8 @@
     "shadow:open": "node src/cli.js shadow-open",
     "shadow:mark": "node src/cli.js shadow-mark",
     "shadow:scan": "node src/cli.js shadow-scan",
+    "shadow:tick": "node src/cli.js shadow-tick",
+    "shadow:monitor": "node src/cli.js shadow-monitor",
     "register": "node src/cli.js register",
     "compete:status": "node src/cli.js compete-status",
     "test": "node --test"

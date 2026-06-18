@@ -1,8 +1,10 @@
 import { analyzeSnapshot, buildTradeIntent, buildTradeIntentForSignal } from "./strategy.js";
 import { loadMarketSnapshot } from "./cmc.js";
-import { loadPolicy } from "./config.js";
+import { ROOT, loadPolicy } from "./config.js";
 import { liveModeAllowed, loadState, recordTrade, saveState, validateIntent } from "./guardrails.js";
 import { twak } from "./twak.js";
+import fs from "node:fs";
+import path from "node:path";
 
 export async function analyze() {
   const policy = loadPolicy();
@@ -161,6 +163,30 @@ export async function scanShadowCandidates() {
     regime: report.regime,
     candidates: scans
   };
+}
+
+export async function recordShadowTick() {
+  const [mark, scan] = await Promise.allSettled([
+    markShadowTrade(),
+    scanShadowCandidates()
+  ]);
+  const entry = {
+    recordedAt: new Date().toISOString(),
+    mark: mark.status === "fulfilled" ? mark.value : { error: mark.reason?.message ?? String(mark.reason) },
+    scan: scan.status === "fulfilled" ? scan.value : { error: scan.reason?.message ?? String(scan.reason) }
+  };
+  const logPath = path.join(ROOT, "state", "shadow-monitor.jsonl");
+  fs.mkdirSync(path.dirname(logPath), { recursive: true });
+  fs.appendFileSync(logPath, JSON.stringify(entry) + "\n");
+  return { ...entry, logPath };
+}
+
+export async function runShadowMonitor({ intervalMs = 15 * 60 * 1000 } = {}) {
+  do {
+    const tick = await recordShadowTick();
+    process.stdout.write(JSON.stringify(tick, null, 2) + "\n");
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  } while (true);
 }
 
 async function chooseRoutedIntent(report, policy) {
