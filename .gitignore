@@ -7,5 +7,5 @@ coverage/
 dist/
 state/
 logs/
+internal/
 *.local
-
