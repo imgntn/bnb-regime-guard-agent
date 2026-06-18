@@ -51,5 +51,19 @@
   "minConfidence": 65,
   "maxRoundTripDragPct": 1.75,
   "routeDragScorePenaltyMultiplier": 8,
+  "profitabilityChecklist": {
+    "minRegimeScore": 18,
+    "idealRsiMin": 50,
+    "idealRsiMax": 68,
+    "hardRsiMax": 78,
+    "maxChange24hPct": 12,
+    "maxChange7dPct": 18,
+    "maxFundingRatePct": 0.08,
+    "maxAtrPct": 12,
+    "idealRoundTripDragPct": 1.35,
+    "hardRoundTripDragPct": 1.75,
+    "minLiquidityScore": 65,
+    "closeCallMaxWarnings": 2
+  },
   "chain": "bsc"
 }

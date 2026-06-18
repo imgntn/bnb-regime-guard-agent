@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { analyzeSnapshot, buildTradeIntent, buildTradeIntentForSignal } from "../src/strategy.js";
+import { evaluateProfitabilityChecklist } from "../src/checklist.js";
 import { readJson } from "../src/config.js";
 
 const policy = readJson("config/risk-policy.json");
@@ -39,4 +40,36 @@ test("risk-off report blocks new rotate-in intent through validation inputs", ()
   snapshot.market.stablecoin_dominance_change_pct = 2;
   const report = analyzeSnapshot(snapshot, policy);
   assert.equal(report.regime.label, "risk_off");
+});
+
+test("profitability checklist flags close calls and hard failures", () => {
+  const signal = { symbol: "CAKE", action: "ROTATE_IN" };
+  const asset = {
+    symbol: "CAKE",
+    rsi_14: 69,
+    change_24h_pct: 5,
+    change_7d_pct: 11,
+    funding_rate_pct: 0.02,
+    atr_pct: 8,
+    bnb_chain_liquidity_score: 84
+  };
+  const close = evaluateProfitabilityChecklist({
+    signal,
+    asset,
+    regime: { score: 21.3 },
+    route: { roundTripPnlPct: -1.4 },
+    policy
+  });
+  assert.equal(close.status, "close_call");
+  assert.ok(close.warnings.length > 0);
+
+  const fail = evaluateProfitabilityChecklist({
+    signal,
+    asset: { ...asset, rsi_14: 84, funding_rate_pct: 0.12 },
+    regime: { score: 10 },
+    route: { roundTripPnlPct: -2.1 },
+    policy
+  });
+  assert.equal(fail.status, "fail");
+  assert.ok(fail.failures.length >= 3);
 });

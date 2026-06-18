@@ -3,6 +3,7 @@ import { loadMarketSnapshot } from "./cmc.js";
 import { ROOT, loadPolicy } from "./config.js";
 import { liveModeAllowed, loadState, recordTrade, saveState, validateIntent } from "./guardrails.js";
 import { twak } from "./twak.js";
+import { evaluateProfitabilityChecklist } from "./checklist.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -19,7 +20,7 @@ export async function runOnce({ live = false } = {}) {
   const policy = loadPolicy();
   const snapshot = await loadMarketSnapshot({ symbols: policy.eligibleSymbols });
   const report = analyzeSnapshot(snapshot, policy);
-  const routed = await chooseRoutedIntent(report, policy);
+  const routed = await chooseRoutedIntent(report, policy, snapshot);
   const intent = routed.intent;
   const state = loadState();
   const validation = validateIntent(intent, report, policy, state);
@@ -148,13 +149,17 @@ export async function scanShadowCandidates() {
   const policy = loadPolicy();
   const snapshot = await loadMarketSnapshot({ symbols: policy.eligibleSymbols });
   const report = analyzeSnapshot(snapshot, policy);
+  const assets = assetMap(snapshot);
   const candidates = report.signals.filter(
     (signal) => signal.action === "ROTATE_IN" && signal.confidence >= policy.minConfidence
   );
 
   const scans = [];
   for (const signal of candidates) {
-    scans.push(await scanCandidateRoute(signal, policy));
+    scans.push(await scanCandidateRoute(signal, policy, {
+      asset: assets.get(signal.symbol),
+      regime: report.regime
+    }));
   }
 
   scans.sort((a, b) => (b.adjustedScore ?? -Infinity) - (a.adjustedScore ?? -Infinity));
@@ -189,7 +194,8 @@ export async function runShadowMonitor({ intervalMs = 15 * 60 * 1000 } = {}) {
   } while (true);
 }
 
-async function chooseRoutedIntent(report, policy) {
+async function chooseRoutedIntent(report, policy, snapshot = { assets: [] }) {
+  const assets = assetMap(snapshot);
   const candidates = report.signals.filter(
     (signal) => signal.action === "ROTATE_IN" && signal.confidence >= policy.minConfidence
   );
@@ -202,10 +208,13 @@ async function chooseRoutedIntent(report, policy) {
 
   const scans = [];
   for (const signal of candidates) {
-    scans.push(await scanCandidateRoute(signal, policy));
+    scans.push(await scanCandidateRoute(signal, policy, {
+      asset: assets.get(signal.symbol),
+      regime: report.regime
+    }));
   }
   const executable = scans.filter(
-    (scan) => scan.ok && Math.abs(scan.roundTripPnlPct) <= policy.maxRoundTripDragPct
+    (scan) => scan.ok && scan.checklist?.status !== "fail" && Math.abs(scan.roundTripPnlPct) <= policy.maxRoundTripDragPct
   );
   if (!executable.length) {
     return {
@@ -223,7 +232,7 @@ async function chooseRoutedIntent(report, policy) {
   };
 }
 
-async function scanCandidateRoute(signal, policy) {
+async function scanCandidateRoute(signal, policy, context = {}) {
   const intent = buildTradeIntentForSignal(signal, policy);
   try {
     const entryQuote = await twak.quoteSwap(intent);
@@ -243,6 +252,17 @@ async function scanCandidateRoute(signal, policy) {
     const roundTripPnlPct = entryInput.amount ? (roundTripPnl / entryInput.amount) * 100 : 0;
     const routeDrag = Math.abs(roundTripPnlPct);
     const adjustedScore = signal.score - routeDrag * policy.routeDragScorePenaltyMultiplier;
+    const route = {
+      roundTripPnl: Number(roundTripPnl.toFixed(8)),
+      roundTripPnlPct: Number(roundTripPnlPct.toFixed(4))
+    };
+    const checklist = evaluateProfitabilityChecklist({
+      signal,
+      asset: context.asset,
+      regime: context.regime,
+      route,
+      policy
+    });
     return {
       ok: true,
       symbol: signal.symbol,
@@ -252,8 +272,9 @@ async function scanCandidateRoute(signal, policy) {
       intent,
       entryQuote,
       exitQuote,
-      roundTripPnl: Number(roundTripPnl.toFixed(8)),
-      roundTripPnlPct: Number(roundTripPnlPct.toFixed(4)),
+      roundTripPnl: route.roundTripPnl,
+      roundTripPnlPct: route.roundTripPnlPct,
+      checklist,
       routeAccepted: routeDrag <= policy.maxRoundTripDragPct
     };
   } catch (error) {
@@ -266,6 +287,10 @@ async function scanCandidateRoute(signal, policy) {
       code: error.code
     };
   }
+}
+
+function assetMap(snapshot) {
+  return new Map((snapshot.assets ?? []).map((asset) => [String(asset.symbol).toUpperCase(), asset]));
 }
 
 function parseQuotedAmount(text) {

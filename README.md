@@ -50,6 +50,7 @@ Live and dry-run selection use the same route-aware policy:
 - Candidate must be a `ROTATE_IN` signal above the confidence threshold.
 - TWAK must quote both entry and reverse mark routes.
 - Immediate round-trip drag must stay below `maxRoundTripDragPct`.
+- Profitability checklist must not fail hard conditions such as weak regime, overheated RSI, crowded funding, weak liquidity, or excessive route drag.
 - Final choice is ranked by strategy score minus route-drag penalty.
 
 To keep a local quote/PnL history, run `npm run shadow:tick`. It appends a timestamped mark and scan to ignored local state at `state/shadow-monitor.jsonl`.
